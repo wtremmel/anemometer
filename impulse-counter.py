@@ -15,6 +15,7 @@ while True:
         if v == 0:
             count += 1
             led.high()
+            # print(count)
         else:
             led.low()
         prev = v
