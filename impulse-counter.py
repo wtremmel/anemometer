@@ -1,11 +1,13 @@
 import time
-from machine import Pin, ADC
+from machine import Pin
 
 hall = Pin(0,Pin.IN,Pin.PULL_UP)
 led = Pin(25,Pin.OUT)
 
+topic = "/Chattenweg5/2OG-Loggia/wind"
 prev = 0
 count = 0
+interval = 60
 
 lastRead = time.time()
 
@@ -19,7 +21,7 @@ while True:
         else:
             led.low()
         prev = v
-    if (time.time() >= lastRead+60):
-        print("Impulses per minute: ",count)
+    if (time.time() >= lastRead + interval):
+        print(topic,count)
         lastRead = time.time()
         count = 0
