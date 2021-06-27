@@ -22,7 +22,17 @@ CayenneLPP lpp(51);
 // #define LOGLEVEL LOG_LEVEL_SILENT
 
 uint32_t sleep_interval = SLEEP_INTERVAL,
-  measurement_interval = MEASUREMENT_INTERVAL;
+  measurement_interval = MEASUREMENT_INTERVAL,
+  measurement_start,
+  measurement_stop,
+  measurement_counter;
+
+#define S_STARTING 1
+#define S_MEASUREMENT 2
+#define S_COMPLETE 3
+#define S_WAIT 4
+
+uint8_t state = S_STARTING;
 
 // #define LOGLEVEL LOG_LEVEL_VERBOSE
 
@@ -383,6 +393,29 @@ void downLinkDataHandle(McpsIndication_t *mcpsIndication)
 
 void loop() {
   setup_complete = true;
+
+  if (state == S_STARTING) {
+    // we just started. start measurements
+    measurement_start = millis();
+    measurement_stop = measurement_start + MEASUREMENT_INTERVAL;
+    measurement_counter = 0;
+    state = S_MEASUREMENT;
+  }
+
+  if (state == S_MEASUREMENT) {
+    // count pulses
+    static bool prev;
+    
+
+    if (millis() > measurement_stop) {
+      state = S_COMPLETE;
+    }
+  }
+
+  if (state == S_COMPLETE) {
+    // make sure measurement is transmitted
+  }
+
   switch( deviceState )
 	{
 		case DEVICE_STATE_INIT:
