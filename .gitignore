@@ -4,3 +4,4 @@
 *.FCStd3
 *.FCStd4
 .pio
+cubecell-lora-anemometer/pio.map
