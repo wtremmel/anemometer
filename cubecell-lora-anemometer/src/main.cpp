@@ -32,7 +32,8 @@ uint32_t sleep_interval = SLEEP_INTERVAL,
 #define S_COMPLETE 3
 #define S_WAIT 4
 
-uint8_t state = S_STARTING;
+uint8_t state = S_STARTING, prev_reading = 0;
+#define MEASUREMENT_PIN GPIO1
 
 // #define LOGLEVEL LOG_LEVEL_VERBOSE
 
@@ -121,7 +122,7 @@ void set_led(uint8_t r, uint8_t g, uint8_t b) {
 #if HAS_RGB
   vext_power(true);
 
-  Log.verbose(F("set_led(%d,%d,%d)"),r,g,b);
+  // Log.verbose(F("set_led(%d,%d,%d)"),r,g,b);
   if (!pixels_initalized){
     pixels.begin();
     pixels_initalized = true;
@@ -159,6 +160,9 @@ void read_sensors() {
 
   if (voltage_found) {
     read_voltage();
+  }
+  if (state == S_COMPLETE) {
+    lpp.addLuminosity(9,measurement_counter);
   }
 
 }
@@ -232,6 +236,8 @@ void setup() {
   set_led(ledr,ledg,ledb);
 
   setup_lora();
+
+  pinMode(MEASUREMENT_PIN,INPUT);
 }
 
 static void prepareTxFrame( ) {
@@ -400,71 +406,83 @@ void loop() {
     measurement_stop = measurement_start + MEASUREMENT_INTERVAL;
     measurement_counter = 0;
     state = S_MEASUREMENT;
+    Log.verbose(F("S: S_STARTING"));
   }
 
   if (state == S_MEASUREMENT) {
     // count pulses
-    static bool prev;
-    
+    uint8_t v;
+    v = digitalRead(MEASUREMENT_PIN);
+    if (v != prev_reading) {
+      if (v == 0) {
+        measurement_counter++;
+        set_led(1, 0, 0);
+      } else {
+        set_led(0, 0, 0);
+      }
+      prev_reading = v;
+    }
 
     if (millis() > measurement_stop) {
-      state = S_COMPLETE;
+      state = S_COMPLETE; // add after debugging
     }
   }
 
   if (state == S_COMPLETE) {
     // make sure measurement is transmitted
-  }
+    Log.verbose(F("S: S_COMPLETE. counter = %d"),measurement_counter);
 
-  switch( deviceState )
-	{
-		case DEVICE_STATE_INIT:
-		{
-			LoRaWAN.generateDeveuiByChipID();
-			printDevParam();
-			LoRaWAN.init(loraWanClass,loraWanRegion);
-			deviceState = DEVICE_STATE_JOIN;
-			break;
-		}
-		case DEVICE_STATE_JOIN:
-		{
-			LoRaWAN.join();
-			break;
-		}
-		case DEVICE_STATE_SEND:
-		{
-			// prepareTxFrame( appPort );
-      prepareTxFrame();
-			LoRaWAN.send();
-			deviceState = DEVICE_STATE_CYCLE;
-			break;
-		}
-		case DEVICE_STATE_CYCLE:
-		{
-			// Schedule next packet transmission
-			txDutyCycleTime = appTxDutyCycle;
-      Log.verbose(F("DEVICE_STATE_CYCLE: Duty cycle: %d s"),int(appTxDutyCycle / 1000));
+    switch( deviceState )
+  	{
+  		case DEVICE_STATE_INIT:
+  		{
+  			LoRaWAN.generateDeveuiByChipID();
+  			printDevParam();
+  			LoRaWAN.init(loraWanClass,loraWanRegion);
+  			deviceState = DEVICE_STATE_JOIN;
+  			break;
+  		}
+  		case DEVICE_STATE_JOIN:
+  		{
+  			LoRaWAN.join();
+  			break;
+  		}
+  		case DEVICE_STATE_SEND:
+  		{
+  			// prepareTxFrame( appPort );
+        read_sensors();
+        prepareTxFrame();
+  			LoRaWAN.send();
+  			deviceState = DEVICE_STATE_CYCLE;
+  			break;
+  		}
+  		case DEVICE_STATE_CYCLE:
+  		{
+  			// Schedule next packet transmission
+  			txDutyCycleTime = appTxDutyCycle;
+        Log.verbose(F("DEVICE_STATE_CYCLE: Duty cycle: %d s"),int(appTxDutyCycle / 1000));
 
 
-			LoRaWAN.cycle(txDutyCycleTime);
-			deviceState = DEVICE_STATE_SLEEP;
-			break;
-		}
-		case DEVICE_STATE_SLEEP:
-		{
-      // switch off power
-      if (!drain_battery)
-        vext_power(false);
-      // Log.verbose(F("Sleeping - txDutyCycleTime = %d"),txDutyCycleTime);
-      // delay(10);
-			LoRaWAN.sleep();
-			break;
-		}
-		default:
-		{
-			deviceState = DEVICE_STATE_INIT;
-			break;
-		}
-	}
-
+  			LoRaWAN.cycle(txDutyCycleTime);
+  			deviceState = DEVICE_STATE_SLEEP;
+  			break;
+  		}
+  		case DEVICE_STATE_SLEEP:
+  		{
+        // switch off power
+        if (!drain_battery)
+          vext_power(false);
+        // Log.verbose(F("Sleeping - txDutyCycleTime = %d"),txDutyCycleTime);
+        // delay(10);
+  			LoRaWAN.sleep();
+        state = S_STARTING;
+  			break;
+  		}
+  		default:
+  		{
+  			deviceState = DEVICE_STATE_INIT;
+  			break;
+  		}
+  	}
+}
 }
