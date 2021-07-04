@@ -163,6 +163,7 @@ void read_sensors() {
   }
   if (state == S_COMPLETE) {
     lpp.addLuminosity(9,measurement_counter);
+    Log.verbose(F("Wind = %d"), measurement_counter);
   }
 
 }
@@ -402,6 +403,7 @@ void loop() {
 
   if (state == S_STARTING) {
     // we just started. start measurements
+    vext_power(true);
     measurement_start = millis();
     measurement_stop = measurement_start + MEASUREMENT_INTERVAL;
     measurement_counter = 0;
@@ -428,9 +430,9 @@ void loop() {
     }
   }
 
-  if (state == S_COMPLETE) {
+  if (1 || state == S_COMPLETE) {
     // make sure measurement is transmitted
-    Log.verbose(F("S: S_COMPLETE. counter = %d"),measurement_counter);
+
 
     switch( deviceState )
   	{
@@ -450,10 +452,12 @@ void loop() {
   		case DEVICE_STATE_SEND:
   		{
   			// prepareTxFrame( appPort );
-        read_sensors();
-        prepareTxFrame();
-  			LoRaWAN.send();
-  			deviceState = DEVICE_STATE_CYCLE;
+        if (state == S_COMPLETE) {
+          Log.verbose(F("S: S_COMPLETE. counter = %d"),measurement_counter);
+          prepareTxFrame();
+		      LoRaWAN.send();
+  			  deviceState = DEVICE_STATE_CYCLE;
+        }
   			break;
   		}
   		case DEVICE_STATE_CYCLE:
@@ -469,13 +473,15 @@ void loop() {
   		}
   		case DEVICE_STATE_SLEEP:
   		{
-        // switch off power
-        if (!drain_battery)
-          vext_power(false);
-        // Log.verbose(F("Sleeping - txDutyCycleTime = %d"),txDutyCycleTime);
-        // delay(10);
-  			LoRaWAN.sleep();
-        state = S_STARTING;
+        if (state == S_COMPLETE) {
+          // switch off power
+          if (!drain_battery)
+            vext_power(false);
+          Log.verbose(F("Sleeping - txDutyCycleTime = %d"),txDutyCycleTime);
+          delay(10);
+  			  LoRaWAN.sleep();
+          state = S_STARTING;
+        }
   			break;
   		}
   		default:
