@@ -108,6 +108,16 @@ bool ledon = false;
 */
 uint8_t confirmedNbTrials = 4;
 
+
+void print_counters() {
+  Log.verbose(F("sleep_interval = %u"),sleep_interval);
+  Log.verbose(F("measurement_interval = %u"),measurement_interval);
+  Log.verbose(F("measurement_start = %u"),measurement_start);
+  Log.verbose(F("measurement_stop = %u"),measurement_stop);
+  Log.verbose(F("measurement_counter = %u"),measurement_counter);
+  Log.verbose(F("millis() = %u"),millis());
+}
+
 // external power functions
 void vext_power(bool on) {
   if (on) {
@@ -430,65 +440,57 @@ void loop() {
     }
   }
 
-  if (1 || state == S_COMPLETE) {
-    // make sure measurement is transmitted
-
-
-    switch( deviceState )
-  	{
-  		case DEVICE_STATE_INIT:
-  		{
-  			LoRaWAN.generateDeveuiByChipID();
-  			printDevParam();
-  			LoRaWAN.init(loraWanClass,loraWanRegion);
-  			deviceState = DEVICE_STATE_JOIN;
-  			break;
-  		}
-  		case DEVICE_STATE_JOIN:
-  		{
-  			LoRaWAN.join();
-  			break;
-  		}
-  		case DEVICE_STATE_SEND:
-  		{
-  			// prepareTxFrame( appPort );
-        if (state == S_COMPLETE) {
-          Log.verbose(F("S: S_COMPLETE. counter = %d"),measurement_counter);
-          prepareTxFrame();
-		      LoRaWAN.send();
-  			  deviceState = DEVICE_STATE_CYCLE;
-        }
-  			break;
-  		}
-  		case DEVICE_STATE_CYCLE:
-  		{
-  			// Schedule next packet transmission
-  			txDutyCycleTime = appTxDutyCycle;
-        Log.verbose(F("DEVICE_STATE_CYCLE: Duty cycle: %d s"),int(appTxDutyCycle / 1000));
-
-
-  			LoRaWAN.cycle(txDutyCycleTime);
-  			deviceState = DEVICE_STATE_SLEEP;
-  			break;
-  		}
-  		case DEVICE_STATE_SLEEP:
-  		{
-        if (state == S_COMPLETE) {
-          // switch off power
-          if (!drain_battery)
-            vext_power(false);
-          Log.verbose(F("Sleeping - txDutyCycleTime = %d"),txDutyCycleTime);
-          delay(10);
-  			  LoRaWAN.sleep();
-          state = S_STARTING;
-        }
-  			break;
-  		}
-  		default:
-  		{
-  			deviceState = DEVICE_STATE_INIT;
-  			break;
-  		}
-  	}
+  if (state == S_COMPLETE) {
+  switch( deviceState )
+	{
+		case DEVICE_STATE_INIT:
+		{
+			LoRaWAN.generateDeveuiByChipID();
+			printDevParam();
+			LoRaWAN.init(loraWanClass,loraWanRegion);
+			deviceState = DEVICE_STATE_JOIN;
+			break;
+		}
+		case DEVICE_STATE_JOIN:
+		{
+			LoRaWAN.join();
+			break;
+		}
+		case DEVICE_STATE_SEND:
+		{
+      Log.verbose(F("S: S_COMPLETE. counter = %d"),measurement_counter);
+      prepareTxFrame();
+      LoRaWAN.send();
+		  deviceState = DEVICE_STATE_CYCLE;
+			break;
+		}
+		case DEVICE_STATE_CYCLE:
+		{
+			// Schedule next packet transmission
+			txDutyCycleTime = appTxDutyCycle;
+      Log.verbose(F("DEVICE_STATE_CYCLE: Duty cycle: %d s"),int(appTxDutyCycle / 1000));
+      LoRaWAN.cycle(txDutyCycleTime);
+			deviceState = DEVICE_STATE_SLEEP;
+			break;
+		}
+		case DEVICE_STATE_SLEEP:
+		{
+      // switch off power
+      if (!drain_battery)
+        vext_power(false);
+      // Log.verbose(F("Sleeping - txDutyCycleTime = %d"),txDutyCycleTime);
+      // delay(10);
+		  LoRaWAN.sleep();
+      if (millis() > (measurement_stop + sleep_interval)) {
+        state = S_STARTING;
+      }
+			break;
+		}
+		default:
+		{
+			deviceState = DEVICE_STATE_INIT;
+			break;
+		}
+	}
 }
 }
