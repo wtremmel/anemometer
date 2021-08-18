@@ -248,7 +248,7 @@ void setup() {
 
   setup_lora();
 
-  pinMode(MEASUREMENT_PIN,INPUT);
+  pinMode(MEASUREMENT_PIN,INPUT_PULLUP);
 }
 
 static void prepareTxFrame( ) {
