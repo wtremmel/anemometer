@@ -27,6 +27,8 @@ uint32_t sleep_interval = SLEEP_INTERVAL,
   measurement_stop,
   measurement_counter;
 
+bool dynamic_sleeptime = false;
+
 #define S_STARTING 1
 #define S_MEASUREMENT 2
 #define S_COMPLETE 3
@@ -228,6 +230,7 @@ void setup_chipid() {
 void set_default_timers() {
   sleep_interval = SLEEP_INTERVAL;
   measurement_interval = MEASUREMENT_INTERVAL;
+  dynamic_sleeptime = false;
 }
 
 void setup() {
@@ -344,6 +347,18 @@ void process_system_timer_command(unsigned char len, unsigned char *buffer) {
   switch(buffer[0]){
     case 0x00:
       set_default_timers();
+      break;
+    case 0x03:
+      if (buffer[1] == 0) {
+        // dynamic sleep time
+        dynamic_sleeptime = true;
+      } else if (buffer[1] < 10) {
+        sleep_interval = 60*1000*buffer[1];
+        dynamic_sleeptime = false;
+      } else {
+        // illegal value
+        set_default_timers();
+      }
       break;
     default:
       Log.error(F("Unknown timer command %X"),buffer[0]);
