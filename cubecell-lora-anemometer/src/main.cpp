@@ -27,7 +27,6 @@ uint32_t sleep_interval = SLEEP_INTERVAL,
   measurement_stop,
   measurement_counter;
 
-bool dynamic_sleeptime = false;
 
 #define S_STARTING 1
 #define S_MEASUREMENT 2
@@ -65,7 +64,7 @@ DeviceClass_t  loraWanClass = LORAWAN_CLASS;
 /*the application data transmission duty cycle.  value in [ms].*/
 #if BATTERY_RECHARGABLE
 uint32_t appTxDutyCycle = SLEEP_INTERVAL;
-bool variableDutyCycle = false;
+bool variableDutyCycle = true;
 #else
 uint32_t appTxDutyCycle = SLEEP_INTERVAL;
 bool variableDutyCycle = false;
@@ -158,6 +157,26 @@ void read_voltage() {
   uint16_t v = getBatteryVoltage();
   lpp.addAnalogInput(5,(float)v / 1000.0);
   Log.verbose(F("Voltage: %d"),v);
+
+  long int cycle =
+  (
+    (
+      (long)10 - (long)SLEEP_INTERVAL
+    )
+      / ((long)4100-(long)3700)
+  ) *
+  (v - (long)3700) +
+  (long)SLEEP_INTERVAL;
+
+  if (cycle < 10)
+    cycle = 10;
+  if (cycle > SLEEP_INTERVAL)
+    cycle = SLEEP_INTERVAL;
+  if (variableDutyCycle) {
+    sleep_interval = cycle;
+    appTxDutyCycle = cycle;
+  }
+
 }
 
 // Sensor routines
@@ -229,8 +248,9 @@ void setup_chipid() {
 
 void set_default_timers() {
   sleep_interval = SLEEP_INTERVAL;
+  appTxDutyCycle = SLEEP_INTERVAL;
   measurement_interval = MEASUREMENT_INTERVAL;
-  dynamic_sleeptime = false;
+  variableDutyCycle = true;
 }
 
 void setup() {
@@ -351,10 +371,11 @@ void process_system_timer_command(unsigned char len, unsigned char *buffer) {
     case 0x03:
       if (buffer[1] == 0) {
         // dynamic sleep time
-        dynamic_sleeptime = true;
+        variableDutyCycle = true;
       } else if (buffer[1] < 10) {
         sleep_interval = 60*1000*buffer[1];
-        dynamic_sleeptime = false;
+        appTxDutyCycle = sleep_interval;
+        variableDutyCycle = false;
       } else {
         // illegal value
         set_default_timers();
