@@ -17,6 +17,10 @@ CayenneLPP lpp(51);
 #define HAS_RGB 1
 
 #define SLEEP_INTERVAL 60*1000*4 // 4 Minutes
+#define MAX_CYCLE SLEEP_INTERVAL
+#define MIN_CYCLE 10
+#define MAX_VOLTAGE 4100
+#define MIN_VOLTAGE 3700
 #define MEASUREMENT_INTERVAL 60*1000 // 1 Minutes
 #define LOGLEVEL LOG_LEVEL_VERBOSE
 // #define LOGLEVEL LOG_LEVEL_SILENT
@@ -161,17 +165,17 @@ void read_voltage() {
   long int cycle =
   (
     (
-      (long)10 - (long)SLEEP_INTERVAL
+      (long)MIN_CYCLE - (long)MAX_CYCLE
     )
-      / ((long)4100-(long)3700)
+      / ((long)MAX_VOLTAGE-(long)MIN_VOLTAGE)
   ) *
-  (v - (long)3700) +
-  (long)SLEEP_INTERVAL;
+  (v - (long)MIN_VOLTAGE) +
+  (long)MAX_CYCLE;
 
-  if (cycle < 10)
-    cycle = 10;
-  if (cycle > SLEEP_INTERVAL)
-    cycle = SLEEP_INTERVAL;
+  if (cycle < MIN_CYCLE)
+    cycle = MIN_CYCLE;
+  if (cycle > MAX_CYCLE)
+    cycle = MAX_CYCLE;
   if (variableDutyCycle) {
     sleep_interval = cycle;
     appTxDutyCycle = cycle;
